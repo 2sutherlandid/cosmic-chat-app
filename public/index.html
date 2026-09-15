@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmic Chat - Discord-like Chat Application</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Authentication Modal -->
+  <div class="auth-modal hidden" id="auth-modal">
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="auth-logo">✦</div>
+          <h1>Cosmic Chat</h1>
+          <p>Connect, Chat & Call with Friends</p>
+        </div>
+
+        <div class="auth-tabs">
+          <button class="auth-tab-btn active" data-tab="login" onclick="switchAuthTab('login')">Login</button>
+          <button class="auth-tab-btn" data-tab="register" onclick="switchAuthTab('register')">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <form class="auth-form active" id="login-form" data-tab="login">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="login-username" placeholder="Enter your username" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="Enter your password" required>
+          </div>
+          <button type="submit" class="auth-submit-btn">Login</button>
+          <div class="auth-message" id="login-message"></div>
+        </form>
+
+        <!-- Register Form -->
+        <form class="auth-form" id="register-form" data-tab="register">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="register-username" placeholder="Create a username (3-20 chars)" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="register-password" placeholder="Create a password (6+ chars)" required>
+          </div>
+          <div class="form-group">
+            <label>Confirm Password</label>
+            <input type="password" id="register-password-confirm" placeholder="Confirm your password" required>
+          </div>
+          <button type="submit" class="auth-submit-btn">Create Account</button>
+          <div class="auth-message" id="register-message"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chat Application -->
+  <div class="app-layout hidden" id="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="server-icon">✦</div>
+        <div class="server-name">Cosmic</div>
+        <button class="sidebar-menu-btn" onclick="toggleServerMenu()" title="Server Menu">⋯</button>
+      </div>
+
+      <nav class="channels-nav">
+        <div class="nav-section">
+          <div class="nav-section-header">
+            <span class="nav-section-title">Text Channels</span>
+            <button class="nav-add-btn" onclick="promptNewChannel()" title="Add Channel">+</button>
+          </div>
+          <button class="channel-btn active" data-channel="general" onclick="switchChannel('general')">
+            <span class="channel-icon">#</span>
+            <span>general</span>
+          </button>
+          <button class="channel-btn" data-channel="help" onclick="switchChannel('help')">
+            <span class="channel-icon">#</span>
+            <span>help</span>
+          </button>
+          <div id="custom-channels"></div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-header">
+            <span class="nav-section-title">Voice Channels</span>
+          </div>
+          <button class="channel-btn" data-channel="voice_general" onclick="toggleVoiceChannel('voice_general')">
+            <span class="channel-icon">🔊</span>
+            <span>general-voice</span>
+            <span class="voice-badge" id="voice-badge">0</span>
+          </button>
+          <div class="voice-users-list" id="voice-users-list"></div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-header">
+            <span class="nav-section-title">Direct Messages</span>
+            <button class="nav-add-btn" onclick="promptNewDM()" title="New Message">+</button>
+          </div>
+          <div id="dm-list"></div>
+        </div>
+      </nav>
+
+      <div class="voice-status-bar hidden" id="voice-status-bar">
+        <div class="voice-status-content">
+          <div class="voice-status-indicator"></div>
+          <div class="voice-status-text">
+            <div class="voice-status-title">Voice Connected</div>
+            <div class="voice-status-channel" id="voice-status-channel">general-voice</div>
+          </div>
+        </div>
+        <div class="voice-controls">
+          <button class="voice-control-btn" id="mute-btn" onclick="toggleMute()" title="Toggle Mute">🎤</button>
+          <button class="voice-control-btn danger" onclick="leaveVoiceChannel()" title="Leave Voice">✕</button>
+        </div>
+      </div>
+
+      <div class="user-panel">
+        <div class="user-info">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <div class="user-details">
+            <div class="user-name" id="user-name">Anonymous</div>
+            <div class="user-status">Online</div>
+          </div>
+        </div>
+        <div class="user-actions">
+          <button class="user-action-btn" onclick="openSettings()" title="Settings">⚙️</button>
+          <button class="user-action-btn danger" onclick="logout()" title="Logout">⚪</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="chat-main">
+      <!-- Chat Header -->
+      <header class="chat-header">
+        <div class="chat-header-info">
+          <span class="chat-header-icon" id="chat-header-icon">#</span>
+          <h2 id="chat-header-title">general</h2>
+          <p id="chat-header-description">Welcome to the general channel</p>
+        </div>
+        <div class="chat-header-controls">
+          <div class="status-badge" id="connection-status">
+            <span class="status-dot"></span>
+            <span id="status-text">Connecting...</span>
+          </div>
+          <button class="header-btn" onclick="openUserList()" title="Members">👥</button>
+          <button class="header-btn" onclick="openSettings()" title="Settings">⚙️</button>
+        </div>
+      </header>
+
+      <!-- Messages Container -->
+      <div class="messages-container" id="messages-container">
+        <div class="messages-empty">
+          <div class="empty-icon">💬</div>
+          <div class="empty-text">No messages yet. Start the conversation!</div>
+        </div>
+      </div>
+
+      <!-- Message Input -->
+      <div class="chat-input-area">
+        <form class="message-form" id="message-form" onsubmit="handleSendMessage(event)">
+          <div class="message-input-wrapper">
+            <button type="button" class="input-action-btn" onclick="document.getElementById('file-input').click()" title="Attach File">
+              📎
+            </button>
+            <input 
+              type="file" 
+              id="file-input" 
+              style="display: none;"
+              onchange="handleFileSelect()"
+            >
+            <input
+              type="text"
+              id="message-input"
+              class="message-input"
+              placeholder="Type a message..."
+              autocomplete="off"
+            >
+            <button type="submit" class="input-action-btn send-btn" title="Send Message">
+              📤
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal hidden" id="settings-modal">
+      <div class="modal-overlay" onclick="closeSettings()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Settings</h3>
+          <button class="modal-close-btn" onclick="closeSettings()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-section">
+            <h4>Account</h4>
+            <div class="settings-item">
+              <label>Username:</label>
+              <span id="settings-username">-</span>
+            </div>
+            <div class="settings-item">
+              <button class="secondary-btn" onclick="openChangePassword()">Change Password</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h4>Preferences</h4>
+            <div class="settings-item">
+              <label>
+                <input type="checkbox" id="notifications-toggle" checked>
+                Enable Notifications
+              </label>
+            </div>
+            <div class="settings-item">
+              <label>
+                <input type="checkbox" id="sound-toggle" checked>
+                Enable Sound
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary-btn" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal hidden" id="password-modal">
+      <div class="modal-overlay" onclick="closeChangePassword()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Change Password</h3>
+          <button class="modal-close-btn" onclick="closeChangePassword()">✕</button>
+        </div>
+        <form class="modal-form" id="password-form" onsubmit="handleChangePassword(event)">
+          <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" id="current-password" required>
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="new-password" required>
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="confirm-new-password" required>
+          </div>
+          <div id="password-message" class="form-message"></div>
+          <div class="modal-footer">
+            <button type="button" class="secondary-btn" onclick="closeChangePassword()">Cancel</button>
+            <button type="submit" class="primary-btn">Change Password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- User List Modal -->
+    <div class="modal hidden" id="users-modal">
+      <div class="modal-overlay" onclick="closeUserList()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Members</h3>
+          <button class="modal-close-btn" onclick="closeUserList()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="users-list" id="users-list">
+            <div class="empty-state">No members</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audio Container -->
+    <div id="audio-container" style="display: none;"></div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/messaging.js"></script>
+  <script src="js/voicechat.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
